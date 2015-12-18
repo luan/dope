@@ -80,6 +80,7 @@ func (f *fetcher) fetchLRPs() (map[string]*LRP, error) {
 	wg := sync.WaitGroup{}
 	authToken := os.Getenv("OAUTH_TOKEN")
 	for _, lrp := range lrps {
+		lrp := lrp
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
