@@ -22,7 +22,7 @@ func (l *LRP) ActualLRPsByIndex() []*Actual {
 	actuals := make([]*Actual, len(l.Actuals))
 	copy(actuals, l.Actuals)
 
-	sort.Sort(ByIndex(actuals))
+	sort.Sort(byIndex(actuals))
 	return actuals
 }
 
@@ -30,7 +30,7 @@ func (l *LRP) ActualLRPsByCPU() []*Actual {
 	actuals := make([]*Actual, len(l.Actuals))
 	copy(actuals, l.Actuals)
 
-	sort.Sort(ByCPU(actuals))
+	sort.Sort(byCPU(actuals))
 	return actuals
 }
 
@@ -38,7 +38,7 @@ func (l *LRP) ActualLRPsByMemory() []*Actual {
 	actuals := make([]*Actual, len(l.Actuals))
 	copy(actuals, l.Actuals)
 
-	sort.Sort(ByMemory(actuals))
+	sort.Sort(byMemory(actuals))
 	return actuals
 }
 
@@ -46,11 +46,11 @@ func (l *LRP) ActualLRPsByDisk() []*Actual {
 	actuals := make([]*Actual, len(l.Actuals))
 	copy(actuals, l.Actuals)
 
-	sort.Sort(ByDisk(actuals))
+	sort.Sort(byDisk(actuals))
 	return actuals
 }
 
-func ByIndex(actuals []*Actual) ActualsByIndex {
+func byIndex(actuals []*Actual) ActualsByIndex {
 	return actuals
 }
 
@@ -62,7 +62,7 @@ func (l ActualsByIndex) Less(i, j int) bool {
 	return l[i].ActualLRP.Index < l[j].ActualLRP.Index
 }
 
-func ByCPU(actuals []*Actual) ActualsByCPU {
+func byCPU(actuals []*Actual) ActualsByCPU {
 	return actuals
 }
 
@@ -74,7 +74,7 @@ func (l ActualsByCPU) Less(i, j int) bool {
 	return l[i].Metrics.CPU < l[j].Metrics.CPU
 }
 
-func ByMemory(actuals []*Actual) ActualsByMemory {
+func byMemory(actuals []*Actual) ActualsByMemory {
 	return actuals
 }
 
@@ -86,7 +86,7 @@ func (l ActualsByMemory) Less(i, j int) bool {
 	return l[i].Metrics.Memory < l[j].Metrics.Memory
 }
 
-func ByDisk(actuals []*Actual) ActualsByDisk {
+func byDisk(actuals []*Actual) ActualsByDisk {
 	return actuals
 }
 
