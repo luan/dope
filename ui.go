@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
+	humanize "github.com/dustin/go-humanize"
 	"github.com/gizak/termui"
 	"github.com/luan/idope/fetcher"
 )
@@ -69,12 +71,28 @@ func colorizeState(state string) string {
 	}
 }
 
+func fmtBytes(s uint64) string {
+	return strings.Replace(humanize.Bytes(s), " ", "", -1)
+}
+
 func lrpToStrings(lrp *fetcher.LRP) []string {
 	ret := []string{}
-	ret = append(ret, fmt.Sprintf("guid: [%s](fg-bold)\t[instances:](fg-white) [%d](fg-white,fg-bold) ", lrp.Desired.ProcessGuid[:8], lrp.Desired.Instances))
-	for _, actual := range lrp.ActualLRPsByIndex() {
+	ret = append(ret,
+		fmt.Sprintf(
+			"guid: [%s](fg-bold)\t[instances:](fg-white) [%d](fg-white,fg-bold) ",
+			lrp.Desired.ProcessGuid[:8], lrp.Desired.Instances,
+		),
+	)
+	for _, actual := range lrp.ActualLRPsByCPU() {
 		state := colorizeState(actual.ActualLRP.State)
-		ret = append(ret, fmt.Sprintf("\t[%d](fg-white) %s %s ", actual.ActualLRP.Index, actual.ActualLRP.CellId, state))
+		ret = append(ret,
+			fmt.Sprintf(
+				"\t[%2d](fg-white) %s %12s [%5.1f%%](fg-magenta) [%6s](fg-cyan)/[%-6s](fg-cyan,fg-bold) [%6s](fg-red)/[%-6s](fg-red,fg-bold)",
+				actual.ActualLRP.Index, actual.ActualLRP.CellId, state,
+				actual.Metrics.CPU*100,
+				fmtBytes(actual.Metrics.Memory), fmtBytes(uint64(lrp.Desired.MemoryMb*1000*1000)),
+				fmtBytes(actual.Metrics.Disk), fmtBytes(uint64(lrp.Desired.DiskMb*1000*1000)),
+			))
 	}
 	return ret
 }
