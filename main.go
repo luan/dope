@@ -24,6 +24,7 @@ func main() {
 	defer ui.Close()
 
 	go func() {
+		defer ui.Close()
 		fetcher := fetcher.NewFetcher(bbsClient, noaaClient)
 		// for {
 		state, err := fetcher.Fetch()
