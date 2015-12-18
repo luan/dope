@@ -110,7 +110,7 @@ func (f *fetcher) Fetch() (Data, error) {
 }
 
 func (f *fetcher) fetchLRPs() (map[string]*LRP, error) {
-	var lrps map[string]*LRP
+	lrps := map[string]*LRP{}
 
 	desiredLRPs, err := f.bbsClient.DesiredLRPs(models.DesiredLRPFilter{})
 	if err != nil {
