@@ -2,6 +2,7 @@ package main
 
 import (
 	"runtime"
+	"time"
 
 	"github.com/luan/idope/config_finder"
 	"github.com/luan/idope/fetcher"
@@ -26,14 +27,14 @@ func main() {
 	go func() {
 		defer ui.Close()
 		fetcher := fetcher.NewFetcher(bbsClient, noaaClient)
-		// for {
-		state, err := fetcher.Fetch()
-		if err != nil {
-			panic(err)
+		for {
+			state, err := fetcher.Fetch()
+			if err != nil {
+				panic(err)
+			}
+			ui.SetState(&state)
+			time.Sleep(time.Second)
 		}
-		ui.SetState(&state)
-		// time.Sleep(time.Second)
-		// }
 	}()
 
 	ui.Loop()
