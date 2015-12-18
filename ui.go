@@ -108,12 +108,12 @@ func (ui *UI) lrpToStrings(lrp *fetcher.LRP) []string {
 	ret = append(ret,
 		fmt.Sprintf(
 			"    %s %s %s %s %s %s",
-			fmt.Sprintf("[%sindex ](fg-white,bg-reverse)", fmtSort("index", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[%scell  ](fg-yellow,bg-reverse)", fmtSort("cell", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[%sstate     ](fg-white,bg-reverse)", fmtSort("state", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[%scpu   ](fg-magenta,bg-reverse)", fmtSort("cpu", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[%smemory](fg-cyan,bg-reverse)[/total    ](fg-cyan,bg-reverse)", fmtSort("memory", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[%sdisk](fg-red,bg-reverse)[/total       ](fg-red,bg-reverse)", fmtSort("disk", ui.sort, ui.sortReverse)),
+			fmt.Sprintf("[ index %s ](fg-white,bg-reverse)", fmtSort("index", ui.sort, ui.sortReverse)),
+			fmt.Sprintf("[ cell %s ](fg-yellow,bg-reverse)", fmtSort("cell", ui.sort, ui.sortReverse)),
+			fmt.Sprintf("[ state   %s ](fg-white,bg-reverse)", fmtSort("state", ui.sort, ui.sortReverse)),
+			fmt.Sprintf("[ cpu %s ](fg-magenta,bg-reverse)", fmtSort("cpu", ui.sort, ui.sortReverse)),
+			fmt.Sprintf("[ memory](fg-cyan,bg-reverse)[/total  %s ](fg-cyan,bg-reverse)", fmtSort("memory", ui.sort, ui.sortReverse)),
+			fmt.Sprintf("[ disk](fg-red,bg-reverse)[/total     %s ](fg-red,bg-reverse)", fmtSort("disk", ui.sort, ui.sortReverse)),
 		),
 	)
 	var lrps []*fetcher.Actual
@@ -131,7 +131,7 @@ func (ui *UI) lrpToStrings(lrp *fetcher.LRP) []string {
 		state := colorizeState(actual.ActualLRP.State)
 		ret = append(ret,
 			fmt.Sprintf(
-				"    [%7d](fg-white) %-7s %s [%6.1f%%](fg-magenta) [%9s](fg-cyan)[/%-8s](fg-cyan,fg-bold) [%9s](fg-red)[/%-8s](fg-red,fg-bold)",
+				"    [%9d](fg-white) %-8s %s [%6.1f%%](fg-magenta) [%9s](fg-cyan)[/%-8s](fg-cyan,fg-bold) [%9s](fg-red)[/%-8s](fg-red,fg-bold)",
 				actual.ActualLRP.Index, fmtCell(actual.ActualLRP.CellId), state,
 				actual.Metrics.CPU*100,
 				fmtBytes(actual.Metrics.Memory), fmtBytes(uint64(lrp.Desired.MemoryMb*1000*1000)),
@@ -185,8 +185,20 @@ func (ui *UI) bindEvents() {
 	termui.Handle("/sys/kbd/G", ui.handleBottom)
 	termui.Handle("/sys/kbd/<end>", ui.handleBottom)
 
+	termui.Handle("/sys/kbd/<right>", func(termui.Event) {
+		ui.setSort(1)
+		ui.refreshState()
+		ui.Render()
+	})
+
 	termui.Handle("/sys/kbd/l", func(termui.Event) {
 		ui.setSort(1)
+		ui.refreshState()
+		ui.Render()
+	})
+
+	termui.Handle("/sys/kbd/<left>", func(termui.Event) {
+		ui.setSort(-1)
 		ui.refreshState()
 		ui.Render()
 	})
