@@ -1,10 +1,12 @@
 package fetcher
 
 import (
+	"os"
 	"sort"
 
 	"github.com/cloudfoundry-incubator/bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
+	"github.com/cloudfoundry/noaa"
 )
 
 type Fetcher interface {
@@ -12,7 +14,8 @@ type Fetcher interface {
 }
 
 type fetcher struct {
-	bbsClient bbs.Client
+	bbsClient  bbs.Client
+	noaaClient *noaa.Consumer
 }
 
 type Data struct {
@@ -78,11 +81,15 @@ type Actual struct {
 }
 
 type ContainerMetrics struct {
+	CPU    float64
+	Memory uint64
+	Disk   uint64
 }
 
-func NewFetcher(bbsClient bbs.Client) Fetcher {
+func NewFetcher(bbsClient bbs.Client, noaaClient *noaa.Consumer) Fetcher {
 	return &fetcher{
-		bbsClient: bbsClient,
+		bbsClient:  bbsClient,
+		noaaClient: noaaClient,
 	}
 }
 
@@ -136,6 +143,28 @@ func (f *fetcher) fetchLRPs() (map[string]*LRP, error) {
 
 		actual := Actual{ActualLRP: actualLRP, Evacuating: evacuating}
 		lrp.Actuals = append(lrp.Actuals, &actual)
+	}
+
+	for _, lrp := range lrps {
+		authToken := os.Getenv("OAUTH_TOKEN")
+		containerMetrics, err := f.noaaClient.ContainerMetrics(lrp.Desired.LogGuid, authToken)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, metrics := range containerMetrics {
+			for _, actual := range lrp.Actuals {
+				if actual.ActualLRP.Index == metrics.GetInstanceIndex() {
+					containerMetrics := ContainerMetrics{
+						CPU:    metrics.GetCpuPercentage(),
+						Memory: metrics.GetMemoryBytes(),
+						Disk:   metrics.GetDiskBytes(),
+					}
+
+					actual.Metrics = containerMetrics
+				}
+			}
+		}
 	}
 
 	return lrps, nil

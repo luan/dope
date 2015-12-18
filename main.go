@@ -14,12 +14,17 @@ func main() {
 		panic(err)
 	}
 
+	noaaClient, err := config_finder.NewNoaaConsumer()
+	if err != nil {
+		panic(err)
+	}
+
 	ui := NewUI()
 	ui.Setup()
 	defer ui.Close()
 
 	go func() {
-		fetcher := fetcher.NewFetcher(bbsClient)
+		fetcher := fetcher.NewFetcher(bbsClient, noaaClient)
 		// for {
 		state, err := fetcher.Fetch()
 		if err != nil {
