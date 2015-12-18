@@ -8,9 +8,9 @@ import (
 )
 
 type UI struct {
-	selectedIndex  int
-	listContent    []string
-	visibleContent []string
+	selectedIndex int
+	listContent   []string
+	listOffset    int
 
 	listWidget *termui.List
 }
@@ -20,10 +20,7 @@ func NewUI() *UI {
 }
 
 func (ui *UI) Render() {
-	ui.visibleContent = ui.listContent
 	ui.listWidget.Items = ui.selectItem()
-	ui.listWidget.Height = termui.TermHeight()
-	termui.Body.Align()
 	termui.Render(termui.Body)
 }
 
@@ -34,7 +31,7 @@ func (ui *UI) Setup() {
 	}
 
 	list := termui.NewList()
-	// list.Border = false
+	list.BorderLabel = "LRPs"
 	list.ItemFgColor = termui.ColorYellow
 	ui.listWidget = list
 	termui.Body.AddRows(
@@ -42,6 +39,8 @@ func (ui *UI) Setup() {
 			termui.NewCol(9, 0, ui.listWidget),
 		),
 	)
+	ui.listWidget.Height = termui.TermHeight()
+	termui.Body.Align()
 
 	ui.Render()
 	ui.bindEvents()
@@ -99,15 +98,46 @@ func (ui *UI) bindEvents() {
 	termui.Handle("/sys/kbd/<down>", ui.handleDown)
 	termui.Handle("/sys/kbd/k", ui.handleUp)
 	termui.Handle("/sys/kbd/<up>", ui.handleUp)
+	termui.Handle("/sys/kbd/g", ui.handleTop)
+	termui.Handle("/sys/kbd/<home>", ui.handleTop)
+	termui.Handle("/sys/kbd/G", ui.handleBottom)
+	termui.Handle("/sys/kbd/<end>", ui.handleBottom)
 
 	termui.Handle("/sys/wnd/resize", func(termui.Event) {
+		ui.listWidget.Height = termui.TermHeight()
+		termui.Body.Align()
 		ui.Render()
 	})
 }
 
+func (ui *UI) handleBottom(_ termui.Event) {
+	visibleHeight := ui.listWidget.InnerHeight()
+	totalHeight := len(ui.listContent)
+	if totalHeight < visibleHeight {
+		visibleHeight = totalHeight
+	}
+	ui.selectedIndex = visibleHeight - 1
+	ui.listOffset = totalHeight - visibleHeight
+	ui.Render()
+}
+
+func (ui *UI) handleTop(_ termui.Event) {
+	ui.selectedIndex = 0
+	ui.listOffset = 0
+	ui.Render()
+}
+
 func (ui *UI) handleDown(_ termui.Event) {
-	if ui.selectedIndex < len(ui.listContent)-1 {
+	visibleHeight := ui.listWidget.InnerHeight()
+	totalHeight := len(ui.listContent)
+	if totalHeight < visibleHeight {
+		visibleHeight = totalHeight
+	}
+
+	if ui.selectedIndex < visibleHeight-1 {
 		ui.selectedIndex++
+	} else if ui.listOffset < totalHeight-visibleHeight-1 {
+		ui.listOffset++
 	}
 	ui.Render()
 }
@@ -115,14 +145,22 @@ func (ui *UI) handleDown(_ termui.Event) {
 func (ui *UI) handleUp(_ termui.Event) {
 	if ui.selectedIndex > 0 {
 		ui.selectedIndex--
+	} else if ui.listOffset > 0 {
+		ui.listOffset--
 	}
 	ui.Render()
 }
 
 func (ui *UI) selectItem() []string {
-	ret := make([]string, len(ui.visibleContent))
-	for i, item := range ui.visibleContent {
-		if i == ui.selectedIndex {
+	if ui.listWidget.InnerHeight() == 0 {
+		return []string{}
+	}
+	index := ui.selectedIndex
+	visibleContent := ui.listContent[ui.listOffset:]
+
+	ret := make([]string, len(visibleContent))
+	for i, item := range visibleContent {
+		if i == index {
 			ret[i] = fmt.Sprintf(" [➤](fg-cyan,fg-bold) %s", item)
 		} else {
 			ret[i] = fmt.Sprintf("   %s", item)
