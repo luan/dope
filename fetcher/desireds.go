@@ -41,35 +41,3 @@ type LRP struct {
 	Desired *models.DesiredLRP
 	Actuals []*Actual
 }
-
-func (l *LRP) ActualLRPsByIndex() []*Actual {
-	actuals := make([]*Actual, len(l.Actuals))
-	copy(actuals, l.Actuals)
-
-	sort.Sort(ByIndex(actuals))
-	return actuals
-}
-
-func ByIndex(actuals []*Actual) ActualsByIndex {
-	return actuals
-}
-
-type ActualsByIndex []*Actual
-
-func (l ActualsByIndex) Len() int      { return len(l) }
-func (l ActualsByIndex) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
-func (l ActualsByIndex) Less(i, j int) bool {
-	return l[i].ActualLRP.Index < l[j].ActualLRP.Index
-}
-
-type Actual struct {
-	Evacuating bool
-	ActualLRP  *models.ActualLRP
-	Metrics    ContainerMetrics
-}
-
-type ContainerMetrics struct {
-	CPU    float64
-	Memory uint64
-	Disk   uint64
-}
