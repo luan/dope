@@ -59,13 +59,13 @@ func (ui *UI) Loop() {
 func colorizeState(state string) string {
 	switch state {
 	case "UNCLAIMED":
-		return "[UNCLAIMED](fg-white)"
+		return fmt.Sprintf("[%-10s](fg-white)", state)
 	case "CLAIMED":
-		return "[CLAIMED](fg-yellow)"
+		return fmt.Sprintf("[%-10s](fg-yellow)", state)
 	case "RUNNING":
-		return "[RUNNING](fg-green)"
+		return fmt.Sprintf("[%-10s](fg-green)", state)
 	case "CRASHED":
-		return "[CRASHED](fg-red)"
+		return fmt.Sprintf("[%-10s](fg-red)", state)
 	default:
 		return state
 	}
@@ -73,6 +73,15 @@ func colorizeState(state string) string {
 
 func fmtBytes(s uint64) string {
 	return strings.Replace(humanize.Bytes(s), " ", "", -1)
+}
+
+func fmtCell(s string) string {
+	parts := strings.Split(s, "_")
+	if len(parts) != 2 {
+		return "none"
+	}
+	parts = strings.Split(parts[1], "-")
+	return fmt.Sprintf("%s/%s", parts[0], parts[1])
 }
 
 func lrpToStrings(lrp *fetcher.LRP) []string {
@@ -83,12 +92,23 @@ func lrpToStrings(lrp *fetcher.LRP) []string {
 			lrp.Desired.ProcessGuid[:8], lrp.Desired.Instances,
 		),
 	)
+	ret = append(ret,
+		fmt.Sprintf(
+			"    %s %s %s %s %s %s",
+			"[index](fg-white,bg-reverse)",
+			"[cell  ](fg-yellow,bg-reverse)",
+			"[state     ](fg-white,bg-reverse)",
+			"[cpu   ](fg-magenta,bg-reverse)",
+			"[memory](fg-cyan,bg-reverse)[/total    ](fg-cyan,bg-reverse)",
+			"[disk](fg-red,bg-reverse)[/total       ](fg-red,bg-reverse)",
+		),
+	)
 	for _, actual := range lrp.ActualLRPsByCPU(true) {
 		state := colorizeState(actual.ActualLRP.State)
 		ret = append(ret,
 			fmt.Sprintf(
-				"\t[%2d](fg-white) %s %12s [%5.1f%%](fg-magenta) [%6s](fg-cyan)/[%-6s](fg-cyan,fg-bold) [%6s](fg-red)/[%-6s](fg-red,fg-bold)",
-				actual.ActualLRP.Index, actual.ActualLRP.CellId, state,
+				"    [%5d](fg-white) %-6s %s [%5.1f%%](fg-magenta) [%8s](fg-cyan)[/%-8s](fg-cyan,fg-bold) [%8s](fg-red)[/%-8s](fg-red,fg-bold)",
+				actual.ActualLRP.Index, fmtCell(actual.ActualLRP.CellId), state,
 				actual.Metrics.CPU*100,
 				fmtBytes(actual.Metrics.Memory), fmtBytes(uint64(lrp.Desired.MemoryMb*1000*1000)),
 				fmtBytes(actual.Metrics.Disk), fmtBytes(uint64(lrp.Desired.DiskMb*1000*1000)),
