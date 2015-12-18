@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"os"
+	"sync"
 
 	"github.com/cloudfoundry-incubator/bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
@@ -76,27 +77,34 @@ func (f *fetcher) fetchLRPs() (map[string]*LRP, error) {
 		lrp.Actuals = append(lrp.Actuals, &actual)
 	}
 
+	wg := sync.WaitGroup{}
+	authToken := os.Getenv("OAUTH_TOKEN")
 	for _, lrp := range lrps {
-		authToken := os.Getenv("OAUTH_TOKEN")
-		containerMetrics, err := f.noaaClient.ContainerMetrics(lrp.Desired.LogGuid, authToken)
-		if err != nil {
-			return nil, err
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			containerMetrics, err := f.noaaClient.ContainerMetrics(lrp.Desired.LogGuid, authToken)
+			if err != nil {
+				return
+			}
 
-		for _, metrics := range containerMetrics {
-			for _, actual := range lrp.Actuals {
-				if actual.ActualLRP.Index == metrics.GetInstanceIndex() {
-					containerMetrics := ContainerMetrics{
-						CPU:    metrics.GetCpuPercentage(),
-						Memory: metrics.GetMemoryBytes(),
-						Disk:   metrics.GetDiskBytes(),
+			for _, metrics := range containerMetrics {
+				for _, actual := range lrp.Actuals {
+					if actual.ActualLRP.Index == metrics.GetInstanceIndex() {
+						containerMetrics := ContainerMetrics{
+							CPU:    metrics.GetCpuPercentage(),
+							Memory: metrics.GetMemoryBytes(),
+							Disk:   metrics.GetDiskBytes(),
+						}
+
+						actual.Metrics = containerMetrics
 					}
-
-					actual.Metrics = containerMetrics
 				}
 			}
-		}
+		}()
 	}
+
+	wg.Wait()
 
 	return lrps, nil
 }
