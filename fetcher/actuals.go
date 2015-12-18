@@ -18,40 +18,36 @@ type ContainerMetrics struct {
 	Disk   uint64
 }
 
-func (l *LRP) ActualLRPsByIndex() []*Actual {
+func (l *LRP) actualsSorted(sortOrder func([]*Actual) sort.Interface, reversed bool) []*Actual {
 	actuals := make([]*Actual, len(l.Actuals))
 	copy(actuals, l.Actuals)
 
-	sort.Sort(byIndex(actuals))
+	if reversed {
+		sort.Sort(sort.Reverse(sortOrder(actuals)))
+	} else {
+		sort.Sort(sortOrder(actuals))
+	}
 	return actuals
 }
 
-func (l *LRP) ActualLRPsByCPU() []*Actual {
-	actuals := make([]*Actual, len(l.Actuals))
-	copy(actuals, l.Actuals)
-
-	sort.Sort(byCPU(actuals))
-	return actuals
+func (l *LRP) ActualLRPsByIndex(reversed bool) []*Actual {
+	return l.actualsSorted(byIndex, reversed)
 }
 
-func (l *LRP) ActualLRPsByMemory() []*Actual {
-	actuals := make([]*Actual, len(l.Actuals))
-	copy(actuals, l.Actuals)
-
-	sort.Sort(byMemory(actuals))
-	return actuals
+func (l *LRP) ActualLRPsByCPU(reversed bool) []*Actual {
+	return l.actualsSorted(byCPU, reversed)
 }
 
-func (l *LRP) ActualLRPsByDisk() []*Actual {
-	actuals := make([]*Actual, len(l.Actuals))
-	copy(actuals, l.Actuals)
-
-	sort.Sort(byDisk(actuals))
-	return actuals
+func (l *LRP) ActualLRPsByMemory(reversed bool) []*Actual {
+	return l.actualsSorted(byMemory, reversed)
 }
 
-func byIndex(actuals []*Actual) ActualsByIndex {
-	return actuals
+func (l *LRP) ActualLRPsByDisk(reversed bool) []*Actual {
+	return l.actualsSorted(byDisk, reversed)
+}
+
+func byIndex(actuals []*Actual) sort.Interface {
+	return ActualsByIndex(actuals)
 }
 
 type ActualsByIndex []*Actual
@@ -62,8 +58,8 @@ func (l ActualsByIndex) Less(i, j int) bool {
 	return l[i].ActualLRP.Index < l[j].ActualLRP.Index
 }
 
-func byCPU(actuals []*Actual) ActualsByCPU {
-	return actuals
+func byCPU(actuals []*Actual) sort.Interface {
+	return ActualsByCPU(actuals)
 }
 
 type ActualsByCPU []*Actual
@@ -74,8 +70,8 @@ func (l ActualsByCPU) Less(i, j int) bool {
 	return l[i].Metrics.CPU < l[j].Metrics.CPU
 }
 
-func byMemory(actuals []*Actual) ActualsByMemory {
-	return actuals
+func byMemory(actuals []*Actual) sort.Interface {
+	return ActualsByMemory(actuals)
 }
 
 type ActualsByMemory []*Actual
@@ -86,8 +82,8 @@ func (l ActualsByMemory) Less(i, j int) bool {
 	return l[i].Metrics.Memory < l[j].Metrics.Memory
 }
 
-func byDisk(actuals []*Actual) ActualsByDisk {
-	return actuals
+func byDisk(actuals []*Actual) sort.Interface {
+	return ActualsByDisk(actuals)
 }
 
 type ActualsByDisk []*Actual

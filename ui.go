@@ -83,7 +83,7 @@ func lrpToStrings(lrp *fetcher.LRP) []string {
 			lrp.Desired.ProcessGuid[:8], lrp.Desired.Instances,
 		),
 	)
-	for _, actual := range lrp.ActualLRPsByCPU() {
+	for _, actual := range lrp.ActualLRPsByCPU(true) {
 		state := colorizeState(actual.ActualLRP.State)
 		ret = append(ret,
 			fmt.Sprintf(
