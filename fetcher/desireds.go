@@ -6,12 +6,6 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/models"
 )
 
-type Data struct {
-	Domains []string
-	Tasks   []*models.Task
-	LRPs    LRPs
-}
-
 type LRPs map[string]*LRP
 
 func (l LRPs) SortedByProcessGuid() []*LRP {

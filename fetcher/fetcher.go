@@ -18,6 +18,12 @@ type fetcher struct {
 	noaaClient *noaa.Consumer
 }
 
+type Data struct {
+	Domains []string
+	Tasks   []*models.Task
+	LRPs    LRPs
+}
+
 func NewFetcher(bbsClient bbs.Client, noaaClient *noaa.Consumer) Fetcher {
 	return &fetcher{
 		bbsClient:  bbsClient,
@@ -104,7 +110,6 @@ func (f *fetcher) fetchLRPs() (map[string]*LRP, error) {
 			}
 		}()
 	}
-
 	wg.Wait()
 
 	return lrps, nil
