@@ -146,7 +146,7 @@ func (d *Data) GetCellState() CellStates {
 				cellState.NumLRPs++
 				cellState.CPUPercentage += actual.Metrics.CPU
 				cellState.MemoryUsed += actual.Metrics.Memory
-				cellState.DiskReserved += uint64(lrp.Desired.MemoryMb * 1024 * 1024)
+				cellState.MemoryReserved += uint64(lrp.Desired.MemoryMb * 1024 * 1024)
 				cellState.DiskUsed += actual.Metrics.Disk
 				cellState.DiskReserved += uint64(lrp.Desired.DiskMb * 1024 * 1024)
 			}
