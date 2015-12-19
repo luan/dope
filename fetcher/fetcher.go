@@ -136,18 +136,20 @@ func (d *Data) GetCellState() CellStates {
 
 	for _, lrp := range d.LRPs {
 		for _, actual := range lrp.Actuals {
-			cellState, ok := cellStates[actual.ActualLRP.CellId]
-			if !ok {
-				cellState = &CellState{CellId: actual.ActualLRP.CellId}
-				cellStates[cellState.CellId] = cellState
-			}
+			if actual.ActualLRP.CellId != "" {
+				cellState, ok := cellStates[actual.ActualLRP.CellId]
+				if !ok {
+					cellState = &CellState{CellId: actual.ActualLRP.CellId}
+					cellStates[cellState.CellId] = cellState
+				}
 
-			cellState.NumLRPs++
-			cellState.CPUPercentage += actual.Metrics.CPU
-			cellState.MemoryUsed += actual.Metrics.Memory
-			cellState.DiskReserved += uint64(lrp.Desired.MemoryMb * 1024 * 1024)
-			cellState.DiskUsed += actual.Metrics.Disk
-			cellState.DiskReserved += uint64(lrp.Desired.DiskMb * 1024 * 1024)
+				cellState.NumLRPs++
+				cellState.CPUPercentage += actual.Metrics.CPU
+				cellState.MemoryUsed += actual.Metrics.Memory
+				cellState.DiskReserved += uint64(lrp.Desired.MemoryMb * 1024 * 1024)
+				cellState.DiskUsed += actual.Metrics.Disk
+				cellState.DiskReserved += uint64(lrp.Desired.DiskMb * 1024 * 1024)
+			}
 		}
 	}
 
