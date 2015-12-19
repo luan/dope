@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"os"
+	"sort"
 	"sync"
 
 	"github.com/cloudfoundry-incubator/bbs"
@@ -126,15 +127,17 @@ type CellState struct {
 
 	NumLRPs  uint64
 	NumTasks uint64
+
+	CellId string
 }
 
-func (d *Data) GetCellState() map[string]*CellState {
+func (d *Data) GetCellState() CellStates {
 	cellStates := map[string]*CellState{}
 	for _, lrp := range d.LRPs {
 		for _, actual := range lrp.Actuals {
 			cellState, ok := cellStates[actual.ActualLRP.CellId]
 			if !ok {
-				cellState = &CellState{}
+				cellState = &CellState{CellId: actual.ActualLRP.CellId}
 			}
 
 			cellState.NumLRPs++
@@ -147,4 +150,29 @@ func (d *Data) GetCellState() map[string]*CellState {
 	}
 
 	return cellStates
+}
+
+type CellStates map[string]*CellState
+
+func (l CellStates) SortedByCellId() []*CellState {
+	var cellStates []*CellState
+
+	for _, state := range l {
+		cellStates = append(cellStates, state)
+	}
+
+	sort.Sort(ByCellId(cellStates))
+	return cellStates
+}
+
+func ByCellId(cellStates []*CellState) CellStatesByCellId {
+	return cellStates
+}
+
+type CellStatesByCellId []*CellState
+
+func (l CellStatesByCellId) Len() int      { return len(l) }
+func (l CellStatesByCellId) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l CellStatesByCellId) Less(i, j int) bool {
+	return l[i].CellId < l[j].CellId
 }
