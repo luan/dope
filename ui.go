@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"github.com/cloudfoundry-incubator/bbs/models"
@@ -80,7 +81,9 @@ func (ui *UI) Render() {
 			fmtBytes(selected.actual.Metrics.Disk), fmtBytes(uint64(selected.lrp.Desired.DiskMb*1000*1000)),
 		)
 	}
-	ui.detailWidget.Text = text
+	dat, _ := ioutil.ReadFile("gopher.txt")
+	gopher := string(dat)
+	ui.detailWidget.Text = text + "\n\n\n\n\n\n\n\n\n" + gopher
 	var totalCPU float64
 	var totalMemoryUsed uint64
 	var totalMemoryReserved uint64
