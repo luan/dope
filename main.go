@@ -4,8 +4,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/luan/idope/config_finder"
-	"github.com/luan/idope/fetcher"
+	"github.com/luan/dope/config_finder"
+	"github.com/luan/dope/fetcher"
 )
 
 func main() {

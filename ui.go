@@ -9,7 +9,7 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/models"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/gizak/termui"
-	"github.com/luan/idope/fetcher"
+	"github.com/luan/dope/fetcher"
 )
 
 type content struct {
