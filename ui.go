@@ -69,6 +69,7 @@ func (ui *UI) Render() {
 [cpu load:](fg-bold) %.1f
 [memory usage:](fg-bold) %s/%s
 [disk usage:](fg-bold) %s/%s
+[crash reason:](fg-bold) %s
 `,
 			selected.actual.ActualLRP.ProcessGuid,
 			fmtCell(selected.actual.ActualLRP.CellId),
@@ -79,11 +80,12 @@ func (ui *UI) Render() {
 			selected.actual.Metrics.CPU*100,
 			fmtBytes(selected.actual.Metrics.Memory), fmtBytes(uint64(selected.lrp.Desired.MemoryMb*1000*1000)),
 			fmtBytes(selected.actual.Metrics.Disk), fmtBytes(uint64(selected.lrp.Desired.DiskMb*1000*1000)),
+			selected.actual.ActualLRP.CrashReason,
 		)
 	}
 	dat, _ := ioutil.ReadFile("gopher.txt")
 	gopher := string(dat)
-	ui.detailWidget.Text = text + "\n\n\n\n\n\n\n\n\n" + gopher
+	ui.detailWidget.Text = text + "\n\n\n\n\n" + gopher
 	var totalCPU float64
 	var totalMemoryUsed uint64
 	var totalMemoryReserved uint64
@@ -91,6 +93,7 @@ func (ui *UI) Render() {
 	var totalDiskReserved uint64
 	var totalLRPs uint64
 	var totalTasks uint64
+	ui.cellsWidget.Text = ""
 
 	if ui.state != nil && len(ui.state.LRPs) > 0 {
 		cells := ui.state.GetCellState().SortedByCellId()
@@ -104,17 +107,29 @@ func (ui *UI) Render() {
 			totalDiskReserved += cell.DiskReserved
 			totalLRPs += cell.NumLRPs
 			totalTasks += cell.NumTasks
+
+			ui.cellsWidget.Text += fmt.Sprintf(
+				`[%8s:](fg-white,fg-bold) | [LRPs:](fg-white,fg-bold) %3d | [Tasks:](fg-white,fg-bold) %3d | [Average CPU:](fg-white,fg-bold) %8.1f%% | [Total Memory:](fg-white,fg-bold) %8s/%-8s | [Total Disk:](fg-white,fg-bold) %8s/%-8s
+`, cell.CellId, cell.NumLRPs, cell.NumTasks,
+				float64(100)*cell.CPUPercentage,
+				fmtBytes(cell.MemoryUsed), fmtBytes(cell.MemoryReserved),
+				fmtBytes(cell.DiskUsed), fmtBytes(cell.DiskReserved),
+			)
 		}
 
 		ui.summaryWidget.Text = fmt.Sprintf(
 			`[Cells:](fg-white,fg-bold) %d
 [LRPs:](fg-white,fg-bold) %d
 [Tasks:](fg-white,fg-bold) %d
-`, totalCells, totalLRPs, totalTasks)
+[Average CPU:](fg-white,fg-bold) %.1f%%
+[Total Memory:](fg-white,fg-bold) %s/%s
+[Total Disk:](fg-white,fg-bold) %s/%s
+`, totalCells, totalLRPs, totalTasks,
+			float64(100)*totalCPU/float64(totalCells),
+			fmtBytes(totalMemoryUsed), fmtBytes(totalMemoryReserved),
+			fmtBytes(totalDiskUsed), fmtBytes(totalDiskReserved),
+		)
 
-		ui.cellsWidget.Text = fmt.Sprintf(
-			`
-`)
 	}
 	termui.Render(termui.Body)
 }
