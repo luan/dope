@@ -1,23 +1,35 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/cloudfoundry-incubator/bbs/models"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/gizak/termui"
 	"github.com/luan/idope/fetcher"
 )
 
+type content struct {
+	String string
+
+	lrp     *fetcher.LRP
+	desired *models.DesiredLRP
+	actual  *fetcher.Actual
+}
+
 type UI struct {
 	selectedIndex int
-	listContent   []string
+	listContent   []content
 	listOffset    int
 	sort          int
 	sortReverse   bool
 	state         *fetcher.Data
 
-	listWidget *termui.List
+	listWidget    *termui.List
+	detailWidget  *termui.Par
+	summaryWidget *termui.Par
 }
 
 func NewUI() *UI {
@@ -25,7 +37,52 @@ func NewUI() *UI {
 }
 
 func (ui *UI) Render() {
-	ui.listWidget.Items = ui.selectItem()
+	var selected content
+	ui.listWidget.Items, selected = ui.selectItem()
+	text := ""
+	if selected.desired != nil {
+		routes, _ := json.Marshal((*selected.desired.Routes)["cf-router"])
+		ui.detailWidget.BorderLabel = "Desired LRP"
+		text = fmt.Sprintf(
+			`[guid:](fg-bold) %s
+[start command:](fg-bold)
+%s
+[routes:](fg-bold) %s
+`,
+			selected.desired.ProcessGuid,
+			selected.lrp.StartCommand(),
+			string(routes),
+		)
+	}
+	if selected.actual != nil {
+		ui.detailWidget.BorderLabel = "Actual LRP"
+		ports, _ := json.Marshal(selected.actual.ActualLRP.Ports)
+		text = fmt.Sprintf(
+			`[guid:](fg-bold) %s
+[cell:](fg-bold) %s
+[instance index:](fg-bold) %d
+[state:](fg-bold) %s
+[address:](fg-bold) %s
+[ports:](fg-bold) %s
+[cpu load:](fg-bold) %.1f
+[memory usage:](fg-bold) %s/%s
+[disk usage:](fg-bold) %s/%s
+`,
+			selected.actual.ActualLRP.ProcessGuid,
+			fmtCell(selected.actual.ActualLRP.CellId),
+			selected.actual.ActualLRP.Index,
+			colorizeState(selected.actual.ActualLRP.State),
+			selected.actual.ActualLRP.Address,
+			ports,
+			selected.actual.Metrics.CPU*100,
+			fmtBytes(selected.actual.Metrics.Memory), fmtBytes(uint64(selected.lrp.Desired.MemoryMb*1000*1000)),
+			fmtBytes(selected.actual.Metrics.Disk), fmtBytes(uint64(selected.lrp.Desired.DiskMb*1000*1000)),
+		)
+	}
+	ui.detailWidget.Text = text
+	ui.summaryWidget.Text = fmt.Sprintf(
+		`
+`)
 	termui.Render(termui.Body)
 }
 
@@ -39,12 +96,21 @@ func (ui *UI) Setup() {
 	list.BorderLabel = "LRPs"
 	list.ItemFgColor = termui.ColorYellow
 	ui.listWidget = list
+	ui.detailWidget = termui.NewPar("")
+	ui.summaryWidget = termui.NewPar("")
+	ui.summaryWidget.BorderLabel = "Summary"
+
 	termui.Body.AddRows(
 		termui.NewRow(
-			termui.NewCol(9, 0, ui.listWidget),
+			termui.NewCol(12, 0, ui.summaryWidget),
+		),
+		termui.NewRow(
+			termui.NewCol(6, 0, ui.listWidget),
+			termui.NewCol(6, 0, ui.detailWidget),
 		),
 	)
 	ui.listWidget.Height = termui.TermHeight()
+	ui.detailWidget.Height = termui.TermHeight()
 	termui.Body.Align()
 
 	ui.Render()
@@ -97,24 +163,30 @@ func fmtSort(s string, sort int, reverse bool) string {
 	return "▴"
 }
 
-func (ui *UI) lrpToStrings(lrp *fetcher.LRP) []string {
-	ret := []string{}
+func (ui *UI) lrpToContents(lrp *fetcher.LRP) []content {
+	ret := []content{}
 	ret = append(ret,
-		fmt.Sprintf(
-			"guid: [%s](fg-bold)\t[instances:](fg-white) [%d](fg-white,fg-bold) ",
-			lrp.Desired.ProcessGuid[:8], lrp.Desired.Instances,
-		),
+		content{
+			String: fmt.Sprintf(
+				"guid: [%s](fg-bold)\t[instances:](fg-white) [%d](fg-white,fg-bold) ",
+				lrp.Desired.ProcessGuid[:8], lrp.Desired.Instances,
+			),
+			lrp:     lrp,
+			desired: lrp.Desired,
+		},
 	)
 	ret = append(ret,
-		fmt.Sprintf(
-			"    %s %s %s %s %s %s",
-			fmt.Sprintf("[ index %s ](fg-white,bg-reverse)", fmtSort("index", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[ cell %s ](fg-yellow,bg-reverse)", fmtSort("cell", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[ state   %s ](fg-white,bg-reverse)", fmtSort("state", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[ cpu %s ](fg-magenta,bg-reverse)", fmtSort("cpu", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[ memory](fg-cyan,bg-reverse)[/total  %s ](fg-cyan,bg-reverse)", fmtSort("memory", ui.sort, ui.sortReverse)),
-			fmt.Sprintf("[ disk](fg-red,bg-reverse)[/total     %s ](fg-red,bg-reverse)", fmtSort("disk", ui.sort, ui.sortReverse)),
-		),
+		content{
+			String: fmt.Sprintf(
+				"    %s %s %s %s %s %s",
+				fmt.Sprintf("[ index %s ](fg-white,bg-reverse)", fmtSort("index", ui.sort, ui.sortReverse)),
+				fmt.Sprintf("[ cell %s ](fg-yellow,bg-reverse)", fmtSort("cell", ui.sort, ui.sortReverse)),
+				fmt.Sprintf("[ state   %s ](fg-white,bg-reverse)", fmtSort("state", ui.sort, ui.sortReverse)),
+				fmt.Sprintf("[ cpu %s ](fg-magenta,bg-reverse)", fmtSort("cpu", ui.sort, ui.sortReverse)),
+				fmt.Sprintf("[ memory](fg-cyan,bg-reverse)[/total  %s ](fg-cyan,bg-reverse)", fmtSort("memory", ui.sort, ui.sortReverse)),
+				fmt.Sprintf("[ disk](fg-red,bg-reverse)[/total     %s ](fg-red,bg-reverse)", fmtSort("disk", ui.sort, ui.sortReverse)),
+			),
+		},
 	)
 	var lrps []*fetcher.Actual
 	switch ui.sort {
@@ -130,22 +202,27 @@ func (ui *UI) lrpToStrings(lrp *fetcher.LRP) []string {
 	for _, actual := range lrps {
 		state := colorizeState(actual.ActualLRP.State)
 		ret = append(ret,
-			fmt.Sprintf(
-				"    [%9d](fg-white) %-8s %s [%6.1f%%](fg-magenta) [%9s](fg-cyan)[/%-8s](fg-cyan,fg-bold) [%9s](fg-red)[/%-8s](fg-red,fg-bold)",
-				actual.ActualLRP.Index, fmtCell(actual.ActualLRP.CellId), state,
-				actual.Metrics.CPU*100,
-				fmtBytes(actual.Metrics.Memory), fmtBytes(uint64(lrp.Desired.MemoryMb*1000*1000)),
-				fmtBytes(actual.Metrics.Disk), fmtBytes(uint64(lrp.Desired.DiskMb*1000*1000)),
-			))
+			content{
+				String: fmt.Sprintf(
+					"    [%9d](fg-white) %-8s %s [%6.1f%%](fg-magenta) [%9s](fg-cyan)[/%-8s](fg-cyan,fg-bold) [%9s](fg-red)[/%-8s](fg-red,fg-bold)",
+					actual.ActualLRP.Index, fmtCell(actual.ActualLRP.CellId), state,
+					actual.Metrics.CPU*100,
+					fmtBytes(actual.Metrics.Memory), fmtBytes(uint64(lrp.Desired.MemoryMb*1000*1000)),
+					fmtBytes(actual.Metrics.Disk), fmtBytes(uint64(lrp.Desired.DiskMb*1000*1000)),
+				),
+				lrp:    lrp,
+				actual: actual,
+			},
+		)
 	}
 	return ret
 }
 
 func (ui *UI) refreshState() {
-	ui.listContent = []string{}
+	ui.listContent = []content{}
 	lrps := ui.state.LRPs.SortedByProcessGuid()
 	for _, lrp := range lrps {
-		content := ui.lrpToStrings(lrp)
+		content := ui.lrpToContents(lrp)
 		ui.listContent = append(ui.listContent, content...)
 	}
 }
@@ -217,6 +294,7 @@ func (ui *UI) bindEvents() {
 
 	termui.Handle("/sys/wnd/resize", func(termui.Event) {
 		ui.listWidget.Height = termui.TermHeight()
+		ui.detailWidget.Height = termui.TermHeight()
 		termui.Body.Align()
 		ui.Render()
 	})
@@ -263,9 +341,9 @@ func (ui *UI) handleUp(_ termui.Event) {
 	ui.Render()
 }
 
-func (ui *UI) selectItem() []string {
+func (ui *UI) selectItem() ([]string, content) {
 	if ui.listWidget.InnerHeight() == 0 {
-		return []string{}
+		return []string{}, content{}
 	}
 	index := ui.selectedIndex
 	visibleContent := ui.listContent[ui.listOffset:]
@@ -273,10 +351,10 @@ func (ui *UI) selectItem() []string {
 	ret := make([]string, len(visibleContent))
 	for i, item := range visibleContent {
 		if i == index {
-			ret[i] = fmt.Sprintf(" [❯](fg-cyan,fg-bold) %s", item)
+			ret[i] = fmt.Sprintf(" [❯](fg-cyan,fg-bold) %s", item.String)
 		} else {
-			ret[i] = fmt.Sprintf("   %s", item)
+			ret[i] = fmt.Sprintf("   %s", item.String)
 		}
 	}
-	return ret
+	return ret, visibleContent[index]
 }
