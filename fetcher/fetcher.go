@@ -114,3 +114,37 @@ func (f *fetcher) fetchLRPs() (map[string]*LRP, error) {
 
 	return lrps, nil
 }
+
+type CellState struct {
+	MemoryUsed     uint64
+	MemoryReserved uint64
+
+	DiskUsed     uint64
+	DiskReserved uint64
+
+	CPUPercentage float64
+
+	NumLRPs  uint64
+	NumTasks uint64
+}
+
+func (d *Data) GetCellState() map[string]*CellState {
+	cellStates := map[string]*CellState{}
+	for _, lrp := range d.LRPs {
+		for _, actual := range lrp.Actuals {
+			cellState, ok := cellStates[actual.ActualLRP.CellId]
+			if !ok {
+				cellState = &CellState{}
+			}
+
+			cellState.NumLRPs++
+			cellState.CPUPercentage += actual.Metrics.CPU
+			cellState.MemoryUsed += actual.Metrics.Memory
+			cellState.DiskReserved += uint64(lrp.Desired.MemoryMb * 1024 * 1024)
+			cellState.DiskUsed += actual.Metrics.Disk
+			cellState.DiskReserved += uint64(lrp.Desired.DiskMb * 1024 * 1024)
+		}
+	}
+
+	return cellStates
+}
