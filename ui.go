@@ -30,6 +30,7 @@ type UI struct {
 	listWidget    *termui.List
 	detailWidget  *termui.Par
 	summaryWidget *termui.Par
+	cellsWidget   *termui.Par
 }
 
 func NewUI() *UI {
@@ -80,9 +81,38 @@ func (ui *UI) Render() {
 		)
 	}
 	ui.detailWidget.Text = text
-	ui.summaryWidget.Text = fmt.Sprintf(
-		`
+	var totalCPU float64
+	var totalMemoryUsed uint64
+	var totalMemoryReserved uint64
+	var totalDiskUsed uint64
+	var totalDiskReserved uint64
+	var totalLRPs uint64
+	var totalTasks uint64
+
+	if ui.state != nil && len(ui.state.LRPs) > 0 {
+		cells := ui.state.GetCellState().SortedByCellId()
+		totalCells := len(cells)
+
+		for _, cell := range cells {
+			totalCPU += cell.CPUPercentage
+			totalMemoryUsed += cell.MemoryUsed
+			totalMemoryReserved += cell.MemoryReserved
+			totalDiskUsed += cell.DiskUsed
+			totalDiskReserved += cell.DiskReserved
+			totalLRPs += cell.NumLRPs
+			totalTasks += cell.NumTasks
+		}
+
+		ui.summaryWidget.Text = fmt.Sprintf(
+			`[Cells:](fg-white,fg-bold) %d
+[LRPs:](fg-white,fg-bold) %d
+[Tasks:](fg-white,fg-bold) %d
+`, totalCells, totalLRPs, totalTasks)
+
+		ui.cellsWidget.Text = fmt.Sprintf(
+			`
 `)
+	}
 	termui.Render(termui.Body)
 }
 
@@ -99,18 +129,23 @@ func (ui *UI) Setup() {
 	ui.detailWidget = termui.NewPar("")
 	ui.summaryWidget = termui.NewPar("")
 	ui.summaryWidget.BorderLabel = "Summary"
+	ui.summaryWidget.Height = 12
+	ui.cellsWidget = termui.NewPar("")
+	ui.cellsWidget.BorderLabel = "Cells"
+	ui.cellsWidget.Height = 12
 
 	termui.Body.AddRows(
 		termui.NewRow(
-			termui.NewCol(12, 0, ui.summaryWidget),
+			termui.NewCol(3, 0, ui.summaryWidget),
+			termui.NewCol(9, 0, ui.cellsWidget),
 		),
 		termui.NewRow(
 			termui.NewCol(6, 0, ui.listWidget),
 			termui.NewCol(6, 0, ui.detailWidget),
 		),
 	)
-	ui.listWidget.Height = termui.TermHeight()
-	ui.detailWidget.Height = termui.TermHeight()
+	ui.listWidget.Height = termui.TermHeight() - 12
+	ui.detailWidget.Height = termui.TermHeight() - 12
 	termui.Body.Align()
 
 	ui.Render()
@@ -293,8 +328,8 @@ func (ui *UI) bindEvents() {
 	})
 
 	termui.Handle("/sys/wnd/resize", func(termui.Event) {
-		ui.listWidget.Height = termui.TermHeight()
-		ui.detailWidget.Height = termui.TermHeight()
+		ui.listWidget.Height = termui.TermHeight() - 12
+		ui.detailWidget.Height = termui.TermHeight() - 12
 		termui.Body.Align()
 		ui.Render()
 	})
